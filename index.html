@@ -1,0 +1,1721 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة بيانات السيارات (مدمج JsBarcode)</title>
+    <style>
+        /* التنسيق الأساسي والوضع الداكن */
+        body { 
+            font-family: 'Courier New', Courier, monospace; 
+            font-weight: bold;                          
+            background-color: #000000; /* خلفية سوداء */
+            color: #f0f0f0; /* نص أبيض فاتح */
+            padding: 10px; 
+        }
+        form { 
+            width: 100%; margin: 0 auto; 
+            background: #1e1e1e; /* خلفية النموذج داكنة */
+            padding: 30px; border-radius: 8px; 
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.1); 
+        }
+        fieldset { border: 1px solid #333; padding: 20px; margin-bottom: 30px; border-radius: 5px; }
+        legend { font-size: 1.5em; font-weight: bold; color: #007bff; padding: 0 10px; }
+        .form-group { margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 15px; }
+        .form-group > div { flex: 1 1 150px; min-width: 150px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #cccccc; white-space: nowrap; }
+        
+        /* ⬅️ تنسيق الخطوط لمربعات الإدخال في جميع الأقسام */
+        input[type="text"], 
+        input[type="number"], 
+        input[type="date"], 
+        textarea, 
+        select { 
+            width: 100%; 
+            padding: 10px; 
+            background-color: #2a2a2a; /* خلفية داكنة عامة للخانات */
+            color: #ffffff; /* نص أبيض */
+            border: 1px solid #555; 
+            border-radius: 4px; 
+            box-sizing: border-box; 
+            
+            /* تطبيق خط وحجم النص المطلوب */
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            font-size: 1em; /* حجم قياسي يتناسب مع المربع */
+            
+            /* التعديل: توسيط النص داخل الحقل (لخانات النص والأرقام) */
+            text-align: center;
+        }
+        
+        /* 💡 محاذاة الـ SELECT الخاصة بمحرك البحث إلى اليمين */
+        #car-selector {
+            text-align: right;
+            text-align-last: right; /* لتطبيق المحاذاة على القيمة المختارة أيضاً */
+        }
+        
+        /* 💡 التعديل الخاص بالقسم الأساسي: خط أزرق غامق عريض في القسم الأول مع الخلفية الصفراء */
+        fieldset:first-of-type input, fieldset:first-of-type select {
+            background-color: #ffffe0 !important; /* أصفر فاتح جداً */
+            color: #0056b3 !important; /* اللون الأزرق الغامق */
+            font-weight: bold !important; /* التأكيد على الخط العريض */
+        }
+        
+        .full-width { flex: 1 1 100%; }
+        
+        /* تنسيق الأزرار */
+        .action-buttons { display: flex; justify-content: flex-start; gap: 10px; margin-top: 20px; }
+        .action-buttons button, #print-records { 
+            padding: 10px 20px; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            transition: background-color 0.3s;
+            /* تطبيق خط الأزرار أيضاً */
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 1em;
+        }
+        #save-data { background-color: #28a745; color: white; }
+        #update-data { background-color: #ffc107; color: #333; }
+        #delete-data { background-color: #dc3545; color: white; }
+        #add-oil-record { background-color: #17a2b8; color: white; }
+        #save-oil-edit { background-color: #007bff; color: white; display: none; }
+        #add-maintenance-record { background-color: #8c5dff; color: white; }
+        #save-maintenance-edit { background-color: #007bff; color: white; display: none; }
+        /* أزرار قطع الغيار الجديدة */
+        #add-parts-record { background-color: #6f42c1; color: white; }
+        #save-parts-edit { background-color: #007bff; color: white; display: none; }
+        
+        /* زر الطباعة في نهاية النموذج العام (تم إخفاؤه لصالح أزرار التقارير) */
+        #print-records { display: none; } 
+        
+        /* أزرار التقارير في القسم الخامس */
+        .report-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
+        .report-buttons button { background-color: #ff8c00; color: white; padding: 10px 15px; }
+        .report-buttons .full-report-btn { background-color: #9400d3; } /* لون مختلف للتقرير الشامل */
+
+        
+        /* تنسيق الجداول وعناصر الطباعة للوضع الداكن */
+        .records-container { 
+            padding: 20px; 
+            background-color: #2a2a2a; /* خلفية داكنة لحاوية الجداول */
+            border-radius: 8px; 
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.05); 
+            overflow-x: auto; margin-top: 20px;
+        }
+        .car-records-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 20px; 
+            font-size: 0.9em; 
+            min-width: 1200px; /* زيادة العرض لاستيعاب أزرار التعديل والحذف */
+            /* تطبيق خط الجدول أيضاً */
+            font-family: 'Courier New', Courier, monospace;
+        }
+        /* 💡 تم إضافة محاذاة لليمين للنصوص في خلايا الجدول ليتناسب مع اللغة العربية، باستثناء عمود الإجراءات */
+        .car-records-table th, .car-records-table td { border: 1px solid #555; padding: 8px; text-align: right; }
+        .car-records-table th { 
+            background-color: #444444; /* رؤوس الجدول داكنة */
+            font-weight: bold; 
+            color: #ffffff; 
+        }
+        /* محاذاة عمود الإجراءات لليسار لتكون الأزرار واضحة */
+        .car-records-table th:last-child, .car-records-table td:last-child {
+            text-align: left;
+        }
+        .car-records-table .actions button { 
+            padding: 5px 10px; 
+            margin-left: 5px;
+            font-size: 0.8em;
+        }
+        .car-records-table .edit-btn { background-color: #ffc107; color: #333; }
+        .car-records-table .delete-btn { background-color: #dc3545; color: white; }
+        
+        /* قسم الطباعة */
+        .print-only { display: none; margin-bottom: 20px; }
+        .print-area { display: none; } /* إخفاء منطقة الطباعة افتراضياً */
+
+        @media print {
+            /* إعادة التعيين للطباعة (الخلفية بيضاء والخط طبيعي) */
+            body { 
+                font-family: Arial, sans-serif; 
+                font-weight: normal; 
+                background-color: #fff; 
+                size: A4 landscape; /* التأكيد على A4 أفقي */
+                padding: 0;
+                margin: 0;
+            }
+            /* يتم إعادة تعيين كل الألوان إلى الأبيض والأسود أو درجاته */
+            .records-container, .car-records-table th, .car-records-table td, form,
+            input, select, textarea { 
+                background-color: #fff !important;
+                color: #000 !important;
+                border-color: #999 !important;
+                font-family: Arial, sans-serif !important;
+                font-weight: normal !important;
+                text-align: right !important; /* إلغاء التوسيط في الطباعة */
+            }
+            /* إخفاء عمود الإجراءات وأزرار الإجراءات عند الطباعة */
+            .car-records-table th:last-child, .car-records-table td:last-child {
+                display: none !important;
+            }
+            /* إخفاء كل شيء ماعدا منطقة الطباعة */
+            body > * { display: none !important; }
+            .print-area { 
+                display: block !important; 
+                width: 100%;
+                min-height: 100vh;
+                padding: 10mm;
+            }
+            .print-only { display: block; }
+            .records-container { box-shadow: none; padding: 0; margin-top: 10px; }
+            h2, h4 { page-break-before: auto; font-size: 1.2em; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-top: 20px;}
+            
+            /* 💡 التعديل 1: تقليص حجم الخط في الجداول إلى الحد الأدنى */
+            .car-records-table { 
+                min-width: auto; /* إزالة قيود العرض */
+                font-size: 0.7em; /* تصغير الخط */
+            }
+            
+            /* 💡 التعديل 2: تقليل البادينغ وتحديد أقصى عرض */
+            .car-records-table td, .car-records-table th { 
+                padding: 3px 4px !important; /* تقليل البادينغ جداً */
+                word-wrap: break-word; /* السماح بكسر الكلمات الطويلة */
+            }
+            
+            /* 💡 التعديل 3: تحديد عرض لأعمدة الوصف والتفاصيل الطويلة */
+            
+            /* الصيانة: عمود التفاصيل (details) (العمود رقم 3) */
+            #maintenance-records-table td:nth-child(3) { 
+                max-width: 60px; 
+                min-width: 40px;
+            }
+
+            /* قطع الغيار: الوصف والاسم (العمود رقم 6) + الضمان (العمود رقم 7) */
+            #parts-records-table td:nth-child(6),
+            #parts-records-table td:nth-child(7) { 
+                max-width: 60px; 
+                min-width: 10px;
+            }
+
+            /* تحديد عرض لأعمدة الباركود ليتناسب مع الـ SVG (العمود رقم 5 في قطع الغيار) */
+            #parts-records-table td:nth-child(5) {
+                width: 90px; 
+            }
+            
+            /* تصفير محاذاة النص في خلايا الجدول بالطباعة */
+            .car-records-table th, .car-records-table td { text-align: right !important; }
+        }
+        
+        /* تنسيق خاص للباركود */
+        #barcode-display-area { text-align: center; }
+        /* تحديد ارتفاع الـ SVG ليلائم الجدول */
+        #temp-barcode-svg { max-width: 100%; height: 40px; } 
+    </style>
+</head>
+<body>
+
+    <form onsubmit="event.preventDefault()">
+        <h1>نظام إدارة بيانات السيارات</h1>
+
+        ---
+
+        <fieldset>
+            <legend>🚗 أولاً: بيانات السيارة الأساسية</legend>
+            <div class="form-group full-width">
+                <div style="flex: 1 1 300px;">
+                    <label for="car-selector">اختر نوع السيارة:</label>
+                    <select id="car-selector" onchange="loadCarData(this.value)">
+                        <option value="">** اختر أو أدخل بيانات جديدة **</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <div><label for="car-make">الصنع:</label><input type="text" id="car-make" data-key="make" required></div>
+                <div><label for="car-model">الطراز:</label><input type="text" id="car-model" data-key="model" required></div>
+                <div><label for="car-year">الموديل:</label><input type="number" id="car-year" data-key="year" min="1900" max="2100" required></div>
+                <div><label for="car-color">اللون:</label><input type="text" id="car-color" data-key="color"></div>
+                <div><label for="car-serial">الرقم التسلسلي (VIN):</label><input type="text" id="car-serial" data-key="serial" required></div>
+            </div>
+
+            <div class="form-group">
+                <div><label for="recommended-oil-type">نوع الزيت:</label><input type="text" id="recommended-oil-type" data-key="recommendedOilType"></div>
+                <div><label for="oil-quantity">كمية الزيت (علبة):</label><input type="text" id="oil-quantity" data-key="oilQuantity"></div>
+                <div><label for="reg-expiry-date">انتهاء الاستمارة:</label><input type="date" id="reg-expiry-date" data-key="regExpiry"></div>
+                <div><label for="insurance-company"> شركة التأمين:</label><input type="text" id="insurance-company" data-key="insuranceCompany"></div>
+                <div><label for="insurance-start-date"> بدء التأمين:</label><input type="date" id="insurance-start-date" data-key="insuranceStart"></div>
+                <div><label for="insurance-end-date"> انتهاء التأمين:</label><input type="date" id="insurance-end-date" data-key="insuranceEnd"></div>
+            </div>
+
+            <div class="action-buttons">
+                <button type="button" id="save-data" onclick="saveCarData()">+ حفظ البيانات</button>
+                <button type="button" id="update-data" onclick="updateCarData()" disabled>تعديل البيانات </button>
+                <button type="button" id="delete-data" onclick="deleteCarData()" disabled>حذف البيانات</button>
+                <button type="button" onclick="clearForm()">مسح النموذج</button>
+            </div>
+        </fieldset>
+
+        ---
+
+        <fieldset id="oil-fieldset" style="display: none;">
+            <legend>🛢️ ثانياً : سجل تغيير الزيت</legend>
+            <div id="oil-input-fields" style="border: 1px dashed #555; padding: 15px; margin-bottom: 20px;">
+                <h4>أدخل عملية غيار زيت جديدة</h4>
+                <div class="form-group">
+                    <div><label for="oil-date">تاريخ العملية:</label><input type="date" id="oil-date" data-oil-key="date" required></div>
+                    <div><label for="oil-type">اسم الزيت:</label><input type="text" id="oil-type" data-oil-key="oilType"></div>
+                    <div><label for="air-filter">فلتر الهواء:</label><select id="air-filter" data-oil-key="airFilter"><option value="لم يتم">لم يتم التغيير</option><option value="تم التغيير">تم التغيير</option><option value="تم التنظيف">تم التنظيف</option></select></div>
+                    <div><label for="engine-filter">فلتر مكينة (زيت):</label><select id="engine-filter" data-oil-key="engineFilter"><option value="لم يتم">لم يتم التغيير</option><option value="تم التغيير">تم التغيير</option></select></div>
+                </div>
+                <div class="form-group">
+                    <div><label for="brake-fluid">زيت الفرامل:</label><select id="brake-fluid" data-oil-key="brakeFluid"><option value="لم يتم">لم يتم التغيير</option><option value="تم الفحص">تم الفحص</option><option value="تم التغيير">تم التغيير</option></select></div>
+                    <div><label for="water">مياه للسيارة:</label><select id="water" data-oil-key="water"><option value="لم يتم">لم يتم التغيير</option><option value="تم الفحص">تم الفحص</option><option value="تم الإضافة">تم الإضافة</option></select></div>
+                    <div><label for="steering-fluid">زيت الدركسيون:</label><select id="steering-fluid" data-oil-key="steeringFluid"><option value="لم يتم">لم يتم التغيير</option><option value="تم الفحص">تم الفحص</option><option value="تم التغيير">تم التغيير</option></select></div>
+                    <div><label for="gear-oil">زيت القير:</label><select id="gear-oil" data-oil-key="gearOil"><option value="لم يتم">لم يتم التغيير</option><option value="تم الفحص">تم الفحص</option><option value="تم التغيير">تم التغيير</option></select></div>
+                </div>
+                <div class="form-group">
+                    <div><label for="current-reading">قراءة العداد الحالية (كم):</label><input type="number" id="current-reading" data-oil-key="currentReading" min="0" required></div>
+                    <div><label for="oil-validity">صلاحية الزيت (كم):</label><input type="number" id="oil-validity" data-oil-key="oilValidity" min="1000"></div>
+                    <div><label for="next-change-at">الغيار القادم سيكون على قراءة:</label><input type="number" id="next-change-at" data-oil-key="nextChangeAt" min="0" readonly></div>
+                </div>
+                <div class="form-group full-width">
+                    <div class="full-width"><label for="oil-notes">ملاحظات:</label><textarea id="oil-notes" data-oil-key="notes"></textarea></div>
+                </div>
+                <div class="action-buttons">
+                    <button type="button" id="add-oil-record" onclick="addOilRecord()" disabled>+ حفظ البيانات  </button>
+                    <button type="button" id="save-oil-edit" onclick="saveOilEdit()">💾 حفظ البيانات</button>
+                    <button type="button" onclick="clearOilForm()">مسح البيانات</button>
+                </div>
+            </div>
+
+            <h4 style="margin-top: 10px;">سجلات الزيوت لهذه السيارة</h4>
+            <div id="oil-records-output" class="records-container">
+                </div>
+        </fieldset>
+        
+        ---
+
+        <fieldset id="maintenance-fieldset" style="display: none;">
+            <legend>🔧 ثالثاً : سجل الصيانة والإصلاحات</legend>
+
+            <div id="maintenance-input-fields" style="border: 1px dashed #555; padding: 15px; margin-bottom: 20px;">
+                <h4>إدخل كرت صيانة جديد</h4>
+                
+                <div class="form-group">
+                    <div>
+                        <label for="maintenance-date">تاريخ العملية:</label>
+                        <input type="date" id="maintenance-date" data-maint-key="date" required>
+                    </div>
+                    <div>
+                        <label for="maintenance-type">نوع الصيانة:</label>
+                        <select id="maintenance-type" data-maint-key="type" required>
+                            <option value="">-- اختر نوع الصيانة --</option>
+                            <option value="تغيير زيت المحرك والفلتر">تغيير زيت المحرك والفلتر</option>
+                            <option value="استبدال فلتر الهواء (المحرك)">استبدال فلتر الهواء (المحرك)</option>
+                            <option value="استبدال فلتر هواء المقصورة (المكيف)">استبدال فلتر هواء المقصورة (المكيف)</option>
+                            <option value="استبدال فلتر الوقود">استبدال فلتر الوقود</option>
+                            <option value="استبدال شمعات الإشعال (البواجي)">استبدال شمعات الإشعال (البواجي)</option>
+                            <option value="فحص وتنظيف أطراف البطارية واختبار قوتها">فحص وتنظيف أطراف البطارية واختبار قوتها</option>
+                            <option value="استبدال البطارية">استبدال البطارية</option>
+                            <option value="فحص وتعبئة سائل التبريد (رديتر)">فحص وتعبئة سائل التبريد (رديتر)</option>
+                            <option value="فحص وتعبئة سائل الفرامل">فحص وتعبئة سائل الفرامل</option>
+                            <option value="فحص وتعبئة سائل ناقل الحركة (الجير)">فحص وتعبئة سائل ناقل الحركة (الجير)</option>
+                            <option value="فحص وتعبئة سائل المساحات">فحص وتعبئة سائل المساحات</option>
+                            <option value="فحص مستوى زيت الدفرنس">فحص مستوى زيت الدفرنس</option>
+                            <option value="فحص ضغط الإطارات وتعديله">فحص ضغط الإطارات وتعديله</option>
+                            <option value="فحص حساسات الإطارات وتغييرها">فحص حساسات الإطارات وتغييرها</option>
+                            <option value="فحص عمق دعسة الإطارات وحالة التآكل">فحص عمق دعسة الإطارات وحالة التآكل</option>
+                            <option value="مناوبة الإطارات وتغيير مواقعها">مناوبة الإطارات وتغيير مواقعها</option>
+                            <option value="فحص الإطار الاحتياطي والمعدات">فحص الإطار الاحتياطي والمعدات</option>
+                            <option value="استبدال فحمات الفرامل وخرط الهوبات">استبدال فحمات الفرامل وخرط الهوبات</option>
+                            <option value="فحص السيور واستبدالها">فحص السيور واستبدالها</option>
+                            <option value="فحص الأضواء الخارجية والداخلية">فحص الأضواء الخارجية والداخلية</option>
+                            <option value="استبدال مساحات الزجاج الأمامي والخلفي">استبدال مساحات الزجاج الأمامي والخلفي</option>
+                            <option value="سمكرة وبوية">سمكرة وبوية</option>
+                            <option value="شفط البودي">شفط البودي</option>
+                            <option value="فحص وتشغيل البوق (Horn)">فحص وتشغيل البوق (Horn)</option>
+                            <option value="فحص عمل أحزمة الأمان">فحص عمل أحزمة الأمان</option>
+                            <option value="فحص كمبيوتر السيارة (فحص الأعطال)">فحص كمبيوتر السيارة (فحص الأعطال)</option>
+                            <option value="خدمات التكييف والتبريد">خدمات التتكييف والتبريد</option>
+                            <option value="تنظيف نظام حاقنات الوقود (البخاخات)">تنظيف نظام حاقنات الوقود (البخاخات)</option>
+                            <option value="الأذرعة والمقصات">الأذرعة والمقصات</option>
+                            <option value="أعطال المكينة">أعطال المكينة</option>
+                            <option value="تنظيف وتلميع المصابيح الأمامية">تنظيف وتلميع المصابيح الأمامية</option>
+                            <option value="فحص شامل لما قبل السفر">فحص شامل لما قبل السفر (Pre-trip inspection)</option>
+                            <option value="غسيل وتنظيف السيارة">غسيل وتنظيف السيارة</option>
+                            <option value="زجاج الزجاج">زجاج الزجاج</option>
+                            <option value="تنجيد المقاعد">تنجيد المقاعد</option>
+                            <option value="الميكانيكا">الميكانيكا</option>
+                            <option value="الكهرباء">الكهرباء</option>
+                            <option value="الفيبر جلاس">الفيبر جلاس</option>
+                            <option value="قطع غيار">قطع غيار</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group full-width">
+                    <div class="full-width">
+                        <label for="maintenance-details">بيان بالصيانة (ما تم عمله):</label>
+                        <textarea id="maintenance-details" data-maint-key="details" required></textarea>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div>
+                        <label for="parts-cost">تكلفة قطع الغيار (SAR):</label>
+                        <input type="number" id="parts-cost" data-maint-key="partsCost" min="0" step="0.01" oninput="calculateTotal()">
+                    </div>
+                    <div>
+                        <label for="labor-cost">تكلفة الصيانة (أجرة اليد العاملة) (SAR):</label>
+                        <input type="number" id="labor-cost" data-maint-key="laborCost" min="0" step="0.01" oninput="calculateTotal()">
+                    </div>
+                    <div>
+                        <label for="total-cost">مجموع التكلفة (SAR):</label>
+                        <input type="number" id="total-cost" data-maint-key="totalCost" min="0" step="0.01" readonly>
+                    </div>
+                </div>
+                
+                <div class="action-buttons">
+                    <button type="button" id="add-maintenance-record" onclick="addMaintenanceRecord()" disabled>+ حفظ البيانات</button>
+                    <button type="button" id="save-maintenance-edit" onclick="saveMaintenanceEdit()">💾 حفظ تعديل السجل</button>
+                    <button type="button" onclick="clearMaintenanceForm()">مسح البيانات</button>
+                </div>
+            </div>
+
+            <h4 style="margin-top: 10px;">سجلات الصيانة والإصلاحات لهذه السيارة</h4>
+            <div id="maintenance-records-output" class="records-container">
+                </div>
+        </fieldset>
+        
+        ---
+
+        <fieldset id="parts-fieldset" style="display: none;">
+            <legend>🔩 رابعاً : سجل فواتير قطع الغيار</legend>
+            <div id="parts-input-fields" style="border: 1px dashed #555; padding: 15px; margin-bottom: 20px;">
+                <h4>أدخل فاتورة قطع غيار جديدة</h4>
+                
+                <div class="form-group">
+                    <div><label for="parts-date">تاريخ الشراء:</label><input type="date" id="parts-date" data-parts-key="date" required></div>
+                    <div><label for="parts-store-name">اسم المحل:</label><input type="text" id="parts-store-name" data-parts-key="storeName" required></div>
+                    <div><label for="parts-store-phone">رقم الهاتف:</label><input type="number" id="parts-store-phone" data-parts-key="storePhone" min="0"></div>
+                    <div>
+                        <label for="parts-oem-number">رقم القطعة (OEM Number):</label>
+                        <input type="text" id="parts-oem-number" data-parts-key="oemNumber" oninput="generateBarcode()">
+                    </div>
+                    <div>
+                        <label for="parts-barcode">باركود القطعة:</label>
+                        <input type="text" id="parts-barcode" data-parts-key="barcode" placeholder="سيتم توليده تلقائياً" readonly>
+                    </div>
+                </div>
+
+                <div class="form-group full-width">
+                    <div class="full-width" style="text-align: center; border: 1px dashed #777; padding: 10px; margin-top: 10px;">
+                        <label>عرض الباركود (SVG):</label>
+                        <div id="barcode-display-area" style="margin-top: 10px;">
+                            <p style="color: #ccc;">(يظهر الباركود هنا بعد إدخال رقم القطعة)</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group full-width">
+                    <div class="full-width"><label for="parts-description">الوصف والاسم:</label><textarea id="parts-description" data-parts-key="description" required></textarea></div>
+                </div>
+
+                <div class="form-group full-width">
+                    <div class="full-width"><label for="parts-warranty">الضمان:</label><textarea id="parts-warranty" data-parts-key="warranty"></textarea></div>
+                </div>
+
+                <div class="form-group">
+                    <div>
+                        <label for="parts-cost-per-unit">تكلفة القطعة الواحدة (SAR):</label>
+                        <input type="number" id="parts-cost-per-unit" data-parts-key="costPerUnit" min="0" step="0.01" oninput="calculatePartsTotal()">
+                    </div>
+                    <div>
+                        <label for="parts-quantity">عدد القطع:</label>
+                        <input type="number" id="parts-quantity" data-parts-key="quantity" min="1" step="1" oninput="calculatePartsTotal()" required>
+                    </div>
+                    <div>
+                        <label for="parts-tax-rate">الضريبة المُضافة (٪):</label>
+                        <input type="number" id="parts-tax-rate" data-parts-key="taxRate" min="0" step="0.01" value="15" oninput="calculatePartsTotal()">
+                    </div>
+                    <div>
+                        <label for="parts-total-cost">التكلفة الإجمالية (SAR):</label>
+                        <input type="number" id="parts-total-cost" data-parts-key="totalCost" min="0" step="0.01" readonly>
+                    </div>
+                </div>
+                
+                <div class="action-buttons">
+                    <button type="button" id="add-parts-record" onclick="addPartsRecord()" disabled>+ حفظ البيانات</button>
+                    <button type="button" id="save-parts-edit" onclick="savePartsEdit()">💾 حفظ تعديل السجل</button>
+                    <button type="button" onclick="clearPartsForm()">مسح البيانات</button>
+                </div>
+            </div>
+
+            <h4 style="margin-top: 10px;">سجلات قطع الغيار لهذه السيارة</h4>
+            <div id="parts-records-output" class="records-container">
+                </div>
+        </fieldset>
+
+        ---
+
+        <fieldset id="reports-fieldset" style="display: none;">
+            <legend>📊 التقارير والإحصائيات</legend>
+
+            <div style="border: 1px dashed #555; padding: 15px; margin-bottom: 20px;">
+                <h4>📊   تقرير تغيير الزيت</h4>
+                <div class="form-group">
+                    <div>
+                        <label for="oil-report-month">اختر الشهر:</label>
+                        <select id="oil-report-month">
+                            <option value="">كل الشهور</option>
+                            <option value="01">يناير</option><option value="02">فبراير</option><option value="03">مارس</option>
+                            <option value="04">أبريل</option><option value="05">مايو</option><option value="06">يونيو</option>
+                            <option value="07">يوليو</option><option value="08">أغسطس</option><option value="09">سبتمبر</option>
+                            <option value="10">أكتوبر</option><option value="11">نوفمبر</option><option value="12">ديسمبر</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="oil-report-year">اختر السنة:</label>
+                        <select id="oil-report-year" required></select>
+                    </div>
+                </div>
+                <div class="report-buttons">
+                    <button type="button" id="print-oil-report-filtered" onclick="printFilteredReport('oil')">عرض وطباعة التقرير (شهري/سنوي)</button>
+                    <button type="button" class="full-report-btn" onclick="printFullReport('oil')">طباعة تقرير الزيوت الكامل</button>
+                </div>
+            </div>
+
+            <div style="border: 1px dashed #555; padding: 15px; margin-bottom: 20px;">
+                <h4>📊   تقرير الصيانة والإصلاحات</h4>
+                <div class="form-group">
+                    <div>
+                        <label for="maintenance-report-month">اختر الشهر (اختياري):</label>
+                        <select id="maintenance-report-month">
+                            <option value="">كل الشهور</option>
+                            <option value="01">يناير</option><option value="02">فبراير</option><option value="03">مارس</option>
+                            <option value="04">أبريل</option><option value="05">مايو</option><option value="06">يونيو</option>
+                            <option value="07">يوليو</option><option value="08">أغسطس</option><option value="09">سبتمبر</option>
+                            <option value="10">أكتوبر</option><option value="11">نوفمبر</option><option value="12">ديسمبر</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="maintenance-report-year">اختر السنة:</label>
+                        <select id="maintenance-report-year" required></select>
+                    </div>
+                </div>
+                <div class="report-buttons">
+                    <button type="button" id="print-maintenance-report-filtered" onclick="printFilteredReport('maintenance')">عرض وطباعة التقرير (شهري/سنوي)</button>
+                    <button type="button" class="full-report-btn" onclick="printFullReport('maintenance')">طباعة تقرير الصيانة الكامل</button>
+                </div>
+            </div>
+
+            <div style="border: 1px dashed #555; padding: 15px;">
+                <h4>📊   تقرير سجل قطع الغيار</h4>
+                <div class="form-group">
+                    <div>
+                        <label for="parts-report-month">اختر الشهر (اختياري):</label>
+                        <select id="parts-report-month">
+                            <option value="">كل الشهور</option>
+                            <option value="01">يناير</option><option value="02">فبراير</option><option value="03">مارس</option>
+                            <option value="04">أبريل</option><option value="05">مايو</option><option value="06">يونيو</option>
+                            <option value="07">يوليو</option><option value="08">أغسطس</option><option value="09">سبتمبر</option>
+                            <option value="10">أكتوبر</option><option value="11">نوفمبر</option><option value="12">ديسمبر</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="parts-report-year">اختر السنة:</label>
+                        <select id="parts-report-year" required></select>
+                    </div>
+                </div>
+                <div class="report-buttons">
+                    <button type="button" id="print-parts-report-filtered" onclick="printFilteredReport('parts')">عرض وطباعة التقرير (شهري/سنوي)</button>
+                    <button type="button" class="full-report-btn" onclick="printFullReport('parts')">طباعة تقرير قطع الغيار الكامل</button>
+                </div>
+            </div>
+            
+        </fieldset>
+
+        <button type="button" id="print-records" onclick="prepareAndPrint()" disabled>🖨️ طباعة سجلات السيارة الحالية (A4 أفقي)</button>
+
+    </form>
+
+    ---
+
+    <div id="print-area" class="print-area">
+        <h2 class="print-only" id="print-car-header"></h2>
+        
+        <h4 class="print-only">🚗 بيانات السيارة الأساسية</h4>
+        <div id="print-car-data" class="print-only"></div>
+
+        <div id="print-oil-report" class="print-only">
+            <h4 id="oil-report-title" class="print-only">🛢️ تقرير تغيير الزيوت (الشامل)</h4>
+            <div id="print-oil-records" class="records-container print-only"></div>
+        </div>
+
+        <div id="print-maintenance-report" class="print-only">
+            <h4 id="maintenance-report-title" class="print-only">🔧 تقرير الصيانة والإصلاحات (الشامل)</h4>
+            <div id="print-maintenance-records" class="records-container print-only"></div>
+        </div>
+
+        <div id="print-parts-report" class="print-only">
+            <h4 id="parts-report-title" class="print-only">🔩 تقرير سجل قطع الغيار (الشامل)</h4>
+            <div id="print-parts-records" class="records-container print-only"></div>
+        </div>
+    </div>
+
+    حقوق الملكية محفوظة @ تركي السالم 2025
+
+    <script>
+        // مفاتيح تخزين البيانات
+        const CAR_STORAGE_KEY = 'carDataRecords';
+        const OIL_STORAGE_KEY = 'oilRecords';
+        const MAINTENANCE_STORAGE_KEY = 'maintenanceRecords';
+        const PARTS_STORAGE_KEY = 'partsRecords'; 
+        
+        // متغيرات عالمية لحفظ ID السجل الذي يتم تعديله حالياً
+        let currentEditingOilRecordId = null; 
+        let currentEditingMaintenanceRecordId = null; 
+        let currentEditingPartsRecordId = null; 
+
+        // حقول القسم الأول 
+        const dataFields = [
+            { key: 'serial', label: 'الرقم التسلسلي' },
+            { key: 'make', label: 'الصنع' },
+            { key: 'model', label: 'الطراز' },
+            { key: 'year', label: 'الموديل' },
+            { key: 'color', label: 'اللون' },
+            { key: 'recommendedOilType', label: 'نوع الزيت الموصى به' },
+            { key: 'oilQuantity', label: 'كمية الزيت (علبة)' },
+            { key: 'regExpiry', label: 'انتهاء الاستمارة' },
+            { key: 'insuranceCompany', label: 'شركة التأمين' },
+            { key: 'insuranceStart', label: 'تاريخ بدء التأمين' }, 
+            { key: 'insuranceEnd', label: 'انتهاء التأمين' }
+        ];
+
+        // حقول القسم الثاني
+        const oilFields = [
+            { key: 'date', label: 'تاريخ العملية' },
+            { key: 'oilType', label: 'نوع الزيت' },
+            { key: 'currentReading', label: 'قراءة العداد' },
+            { key: 'nextChangeAt', label: 'الغيار القادم' },
+            { key: 'airFilter', label: 'فلتر الهواء' },
+            { key: 'engineFilter', label: 'فلتر مكينة' },
+            { key: 'brakeFluid', label: 'زيت الفرامل' },
+            { key: 'water', label: 'مياه' },
+            { key: 'gearOil', label: 'زيت القير' },
+            { key: 'notes', label: 'ملاحظات' }
+        ];
+
+        // حقول القسم الثالث
+        const maintenanceFields = [
+            { key: 'date', label: 'تاريخ الصيانة' },
+            { key: 'type', label: 'نوع الصيانة' },
+            { key: 'details', label: 'التفاصيل' },
+            { key: 'partsCost', label: 'تكلفة القطع (SAR)' },
+            { key: 'laborCost', label: 'أجرة العمل (SAR)' },
+            { key: 'totalCost', label: 'المجموع (SAR)' }
+        ];
+        
+        // 💡 حقول القسم الرابع (قطع الغيار)
+        const partsFields = [
+            { key: 'date', label: 'تاريخ الشراء' },
+            { key: 'storeName', label: 'اسم المحل' },
+            { key: 'storePhone', label: 'رقم الهاتف' },
+            { key: 'oemNumber', label: 'رقم القطعة (OEM)' },
+            { key: 'barcode', label: 'باركود القطعة' }, 
+            { key: 'description', label: 'الوصف والاسم' },
+            { key: 'warranty', label: 'الضمان' },
+            { key: 'costPerUnit', label: 'تكلفة الوحدة' },
+            { key: 'quantity', label: 'العدد' },
+            { key: 'taxRate', label: 'الضريبة (٪)' },
+            { key: 'totalCost', label: 'الإجمالي (SAR)' }
+        ];
+
+        
+        // متغير عالمي لتخزين سجلات السيارة الحالية
+        let currentCarOilRecords = [];
+        let currentCarMaintenanceRecords = [];
+        let currentCarPartsRecords = []; 
+        
+        // ----------------------------------------------------
+        // وظائف عامة مشتركة
+        // ----------------------------------------------------
+        
+        // 💡 دالة تنسيق التاريخ المطلوبة dd/mm/yyyy
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            // dateString is expected to be 'DD-MM-YYYY' from the input type="date"
+            return dateString.replace(/-/g, '/'); 
+        }
+
+        function getCarRecords() {
+            const records = localStorage.getItem(CAR_STORAGE_KEY);
+            return records ? JSON.parse(records) : {};
+        }
+
+        function getOilRecords() {
+            const records = localStorage.getItem(OIL_STORAGE_KEY);
+            return records ? JSON.parse(records) : {};
+        }
+
+        function getMaintenanceRecords() {
+            const records = localStorage.getItem(MAINTENANCE_STORAGE_KEY);
+            return records ? JSON.parse(records) : {};
+        }
+        
+        // 💡 دالة الحصول على سجلات قطع الغيار
+        function getPartsRecords() {
+            const records = localStorage.getItem(PARTS_STORAGE_KEY);
+            return records ? JSON.parse(records) : {};
+        }
+
+        // دالة حساب الإجمالي لقسم الصيانة
+        function calculateTotal() {
+            const partsCost = parseFloat(document.getElementById('parts-cost').value) || 0;
+            const laborCost = parseFloat(document.getElementById('labor-cost').value) || 0;
+            const totalCostInput = document.getElementById('total-cost');
+            totalCostInput.value = (partsCost + laborCost).toFixed(2);
+        }
+
+        // 💡 دالة حساب الإجمالي لقسم قطع الغيار
+        function calculatePartsTotal() {
+            const costPerUnit = parseFloat(document.getElementById('parts-cost-per-unit').value) || 0;
+            const quantity = parseFloat(document.getElementById('parts-quantity').value) || 0;
+            const taxRate = parseFloat(document.getElementById('parts-tax-rate').value) || 0;
+            const totalCostInput = document.getElementById('parts-total-cost');
+
+            const subTotal = costPerUnit * quantity;
+            const taxAmount = subTotal * (taxRate / 100);
+            const total = subTotal + taxAmount;
+
+            totalCostInput.value = total.toFixed(2);
+        }
+
+        // 💡 دالة توليد الباركود الحقيقي باستخدام مكتبة JsBarcode
+        function generateBarcode() {
+            const oemNumberInput = document.getElementById('parts-oem-number');
+            const barcodeInput = document.getElementById('parts-barcode');
+            const displayArea = document.getElementById('barcode-display-area');
+            const oemValue = oemNumberInput.value.trim();
+
+            barcodeInput.value = oemValue; // يبقى الحقل النصي يحمل الرقم التسلسلي كمرجع
+
+            displayArea.innerHTML = ''; // مسح المنطقة
+
+            if (oemValue.length > 0) {
+                // إنشاء عنصر SVG مؤقت لتوليد الباركود بداخله
+                const tempSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                // تغيير الـ id ليكون ثابتًا ومميزًا لتمكين JsBarcode
+                tempSvg.id = "temp-barcode-svg"; 
+                // يجب إضافته إلى DOM مؤقتاً لتتمكن JsBarcode من العمل
+                displayArea.appendChild(tempSvg); 
+
+                try {
+                    // توليد الباركود باستخدام Code 128
+                    JsBarcode("#temp-barcode-svg", oemValue, {
+                        format: "CODE128", 
+                        displayValue: false, // لا نعرض القيمة أسفل الباركود في الجدول
+                        text: oemValue,
+                        margin: 0, // إزالة الهامش ليلائم الجدول
+                        height: 40, // تقليل الارتفاع ليلائم الجدول
+                        width: 2 // سماكة الخط
+                    });
+                    
+                    // الحصول على كود الـ SVG المتولد
+                    const svgHtml = tempSvg.outerHTML; 
+                    
+                    // تحديث منطقة العرض بكود SVG (للمعاينة)
+                    displayArea.innerHTML = svgHtml;
+                    
+                    // ملاحظة: حفظ كود SVG سيتم في addPartsRecord و savePartsEdit بناءً على محتوى displayArea
+                    
+                } catch(e) {
+                    displayArea.innerHTML = `<p style="color: #dc3545;">⚠️ خطأ: قيمة الباركود غير صالحة أو لم يتم تحميل مكتبة JsBarcode.</p>`;
+                }
+            } else {
+                displayArea.innerHTML = '<p style="color: #ccc;">(يظهر الباركود هنا بعد إدخال رقم القطعة)</p>';
+            }
+        }
+
+
+        // ----------------------------------------------------
+        // وظائف تهيئة حقول السنة (Report Year Initialization)
+        // ----------------------------------------------------
+        function populateYearSelectors() {
+            const currentYear = new Date().getFullYear();
+            const startYear = 2000;
+            const selectors = [
+                document.getElementById('oil-report-year'),
+                document.getElementById('maintenance-report-year'),
+                document.getElementById('parts-report-year') 
+            ];
+
+            selectors.forEach(selector => {
+                selector.innerHTML = '';
+                // يتم إضافة السنة الحالية والسنوات القادمة تلقائياً
+                for (let year = currentYear + 1; year >= startYear; year--) {
+                    const option = document.createElement('option');
+                    option.value = year;
+                    option.textContent = year;
+                    selector.appendChild(option);
+                    if (year === currentYear) {
+                        selector.value = currentYear; // تحديد السنة الحالية كقيمة افتراضية
+                    }
+                }
+            });
+        }
+
+
+        // ----------------------------------------------------
+        // وظائف إدارة بيانات السيارات (القسم الأول)
+        // ----------------------------------------------------
+
+        function populateCarSelector() {
+            const records = getCarRecords();
+            const selector = document.getElementById('car-selector');
+            const selectedValue = selector.value;
+            selector.innerHTML = '<option value="">-- اختر أو أدخل بيانات جديدة --</option>';
+
+            // يتم عرض الصنع والطراز فقط
+            Object.keys(records).forEach(vin => {
+                const option = document.createElement('option');
+                option.value = vin; // لا نزال نحفظ الـ VIN كقيمة لتحديد السيارة
+                option.textContent = records[vin].make + ' ' + records[vin].model;
+                selector.appendChild(option);
+            });
+            selector.value = selectedValue;
+        }
+
+        function loadCarData(vin) {
+            const records = getCarRecords();
+            const data = records[vin];
+            const isSelected = !!data;
+            
+            // تعبئة بيانات السيارة
+            dataFields.map(f => f.key).forEach(key => {
+                const inputElement = document.querySelector(`[data-key="${key}"]`);
+                if (inputElement) {
+                    inputElement.value = isSelected ? data[key] : '';
+                    if (key === 'serial') {
+                        inputElement.readOnly = isSelected;
+                    }
+                }
+            });
+            
+            // تفعيل/تعطيل أزرار القسم الأول
+            document.getElementById('update-data').disabled = !isSelected;
+            document.getElementById('delete-data').disabled = !isSelected;
+            document.getElementById('save-data').disabled = isSelected;
+            
+            // التحكم بظهور الأقسام الأخرى
+            document.getElementById('oil-fieldset').style.display = isSelected ? 'block' : 'none';
+            document.getElementById('maintenance-fieldset').style.display = isSelected ? 'block' : 'none';
+            document.getElementById('parts-fieldset').style.display = isSelected ? 'block' : 'none'; 
+            document.getElementById('reports-fieldset').style.display = isSelected ? 'block' : 'none'; 
+            
+            // تفعيل/تعطيل أزرار الأقسام و تحديث العرض
+            document.getElementById('add-oil-record').disabled = !isSelected;
+            document.getElementById('add-maintenance-record').disabled = !isSelected;
+            document.getElementById('add-parts-record').disabled = !isSelected; 
+            
+            // تحديث سجلات السيارة الحالية
+            const oilRecords = getOilRecords();
+            currentCarOilRecords = oilRecords[vin] || [];
+            
+            const maintenanceRecords = getMaintenanceRecords();
+            currentCarMaintenanceRecords = maintenanceRecords[vin] || [];
+
+            const partsRecords = getPartsRecords(); 
+            currentCarPartsRecords = partsRecords[vin] || [];
+            
+            // عرض السجلات وتصفير حقول البحث 
+            renderOilRecords(currentCarOilRecords);
+            clearOilForm();
+            
+            renderMaintenanceRecords(currentCarMaintenanceRecords);
+            clearMaintenanceForm();
+
+            renderPartsRecords(currentCarPartsRecords); 
+            clearPartsForm();
+        }
+
+        function saveCarData() {
+            const serialInput = document.getElementById('car-serial');
+            const vin = serialInput.value.trim();
+            if (!vin) { alert('الرجاء إدخال الرقم التسلسلي (VIN).'); return; }
+
+            let records = getCarRecords();
+            if (records[vin]) { alert('هذا الرقم التسلسلي مسجل مسبقاً! استخدم زر "تعديل البيانات".'); return; }
+            
+            let newRecord = {};
+            dataFields.map(f => f.key).forEach(key => {
+                const inputElement = document.querySelector(`[data-key="${key}"]`);
+                newRecord[key] = inputElement ? inputElement.value : '';
+            });
+
+            records[vin] = newRecord;
+            localStorage.setItem(CAR_STORAGE_KEY, JSON.stringify(records));
+            alert('تم حفظ بيانات السيارة بنجاح.');
+            populateCarSelector();
+            document.getElementById('car-selector').value = vin;
+            loadCarData(vin);
+        }
+
+        function updateCarData() {
+            const serialInput = document.getElementById('car-serial');
+            const vin = serialInput.value.trim();
+            if (!vin || document.getElementById('car-selector').value !== vin) { return; }
+            
+            let records = getCarRecords();
+            let updatedRecord = {};
+            dataFields.map(f => f.key).forEach(key => {
+                const inputElement = document.querySelector(`[data-key="${key}"]`);
+                updatedRecord[key] = inputElement ? inputElement.value : '';
+            });
+
+            records[vin] = updatedRecord;
+            localStorage.setItem(CAR_STORAGE_KEY, JSON.stringify(records));
+            alert('تم تعديل بيانات السيارة بنجاح.');
+            populateCarSelector();
+            loadCarData(vin); 
+        }
+
+        function deleteCarData() {
+            const selector = document.getElementById('car-selector');
+            const vin = selector.value;
+            
+            if (!vin) { return; }
+            if (confirm(`هل أنت متأكد من حذف بيانات السيارة ذات الرقم التسلسلي ${vin} وسجلاتها؟`)) {
+                let records = getCarRecords();
+                delete records[vin];
+                localStorage.setItem(CAR_STORAGE_KEY, JSON.stringify(records));
+                
+                let oilRecords = getOilRecords();
+                delete oilRecords[vin];
+                localStorage.setItem(OIL_STORAGE_KEY, JSON.stringify(oilRecords));
+                
+                let maintenanceRecords = getMaintenanceRecords();
+                delete maintenanceRecords[vin];
+                localStorage.setItem(MAINTENANCE_STORAGE_KEY, JSON.stringify(maintenanceRecords));
+
+                let partsRecords = getPartsRecords(); 
+                delete partsRecords[vin];
+                localStorage.setItem(PARTS_STORAGE_KEY, JSON.stringify(partsRecords));
+
+                alert('تم حذف بيانات السيارة وسجلاتها بنجاح.');
+                clearForm(); 
+                populateCarSelector();
+            }
+        }
+        
+        function clearForm() {
+            dataFields.map(f => f.key).forEach(key => {
+                const inputElement = document.querySelector(`[data-key="${key}"]`);
+                if (inputElement) {
+                    inputElement.value = '';
+                    if (key === 'serial') {
+                        inputElement.readOnly = false;
+                    }
+                }
+            });
+            document.getElementById('car-selector').value = '';
+            document.getElementById('update-data').disabled = true;
+            document.getElementById('delete-data').disabled = true;
+            document.getElementById('save-data').disabled = false;
+            
+            document.getElementById('oil-fieldset').style.display = 'none';
+            document.getElementById('maintenance-fieldset').style.display = 'none';
+            document.getElementById('parts-fieldset').style.display = 'none'; 
+            document.getElementById('reports-fieldset').style.display = 'none';
+            
+            clearOilForm();
+            clearMaintenanceForm();
+            clearPartsForm(); 
+
+            document.getElementById('oil-records-output').innerHTML = '<p style="text-align: center; color: #777;">الرجاء اختيار سيارة لعرض سجلات زيوتها.</p>';
+            document.getElementById('maintenance-records-output').innerHTML = '<p style="text-align: center; color: #777;">الرجاء اختيار سيارة لعرض سجلات صيانتها.</p>';
+            document.getElementById('parts-records-output').innerHTML = '<p style="text-align: center; color: #777;">الرجاء اختيار سيارة لعرض سجلات قطع الغيار.</p>'; 
+        }
+
+        // ----------------------------------------------------
+        // وظائف إدارة سجلات الزيوت (القسم الثاني)
+        // ----------------------------------------------------
+        
+        function calculateNextChange() {
+            const readingInput = document.getElementById('current-reading');
+            const validityInput = document.getElementById('oil-validity');
+            const nextChangeInput = document.getElementById('next-change-at');
+
+            const currentReading = parseFloat(readingInput.value) || 0;
+            const oilValidity = parseFloat(validityInput.value) || 0;
+
+            nextChangeInput.value = (currentReading > 0 && oilValidity > 0) ? (currentReading + oilValidity) : '';
+        }
+        
+        function addOilRecord() {
+            const currentVin = document.getElementById('car-selector').value;
+            
+            const date = document.getElementById('oil-date').value;
+            if (!currentVin || !date || !document.getElementById('current-reading').value) { return; }
+
+            let oilRecords = getOilRecords();
+            // استخدام Date.now() كـ ID فريد
+            let newRecord = { id: Date.now() }; 
+
+            oilFields.forEach(field => {
+                const inputElement = document.querySelector(`[data-oil-key="${field.key}"]`);
+                newRecord[field.key] = inputElement ? inputElement.value : '';
+            });
+            // التأكد من أن حقل "الغيار القادم" يتم حسابه عند الإضافة
+            calculateNextChange();
+            newRecord.nextChangeAt = document.getElementById('next-change-at').value;
+            // حفظ oilValidity يدوياً لأنه ليس ضمن الـ oilFields المكررة في التعبئة
+            newRecord.oilValidity = document.getElementById('oil-validity').value;
+
+
+            if (!oilRecords[currentVin]) { oilRecords[currentVin] = []; }
+            oilRecords[currentVin].push(newRecord);
+            localStorage.setItem(OIL_STORAGE_KEY, JSON.stringify(oilRecords));
+            
+            alert('تم إضافة سجل الزيت بنجاح لـ ' + currentVin);
+            
+            currentCarOilRecords = oilRecords[currentVin];
+            clearOilForm();
+            renderOilRecords(currentCarOilRecords); 
+        }
+
+        function editOilRecord(recordId) {
+            const record = currentCarOilRecords.find(r => r.id === parseInt(recordId));
+            if (!record) return;
+
+            // 1. تعبئة الحقول بالبيانات الحالية
+            oilFields.forEach(field => {
+                const inputElement = document.querySelector(`[data-oil-key="${field.key}"]`);
+                if (inputElement) {
+                    inputElement.value = record[field.key] || '';
+                }
+            });
+            // يجب تعبئة حقل oilValidity يدوياً 
+            document.getElementById('oil-validity').value = record.oilValidity || '';
+
+            // 2. تحديث متغير التعديل العالمي وإظهار زر الحفظ
+            currentEditingOilRecordId = parseInt(recordId);
+            document.getElementById('add-oil-record').style.display = 'none';
+            document.getElementById('save-oil-edit').style.display = 'inline-block';
+            
+            // 3. التمرير للأعلى لرؤية حقول الإدخال
+            document.getElementById('oil-fieldset').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function saveOilEdit() {
+            const currentVin = document.getElementById('car-selector').value;
+            if (!currentVin || !currentEditingOilRecordId) return;
+
+            let oilRecords = getOilRecords();
+            let records = oilRecords[currentVin];
+            
+            // البحث عن مؤشر السجل الذي يتم تعديله
+            const recordIndex = records.findIndex(r => r.id === currentEditingOilRecordId);
+
+            if (recordIndex > -1) {
+                // تحديث البيانات من حقول الإدخال
+                calculateNextChange(); // إعادة حساب الغيار القادم
+                
+                let updatedRecord = { id: currentEditingOilRecordId };
+                oilFields.forEach(field => {
+                    const inputElement = document.querySelector(`[data-oil-key="${field.key}"]`);
+                    updatedRecord[field.key] = inputElement ? inputElement.value : '';
+                });
+                // حفظ oilValidity يدوياً
+                updatedRecord.oilValidity = document.getElementById('oil-validity').value;
+
+                records[recordIndex] = updatedRecord;
+                localStorage.setItem(OIL_STORAGE_KEY, JSON.stringify(oilRecords));
+                
+                alert('تم تعديل سجل الزيت بنجاح.');
+                
+                currentCarOilRecords = records;
+                renderOilRecords(currentCarOilRecords);
+                clearOilForm();
+            }
+        }
+
+        function deleteOilRecord(recordId) {
+            const currentVin = document.getElementById('car-selector').value;
+            if (!currentVin) return;
+
+            if (confirm('هل أنت متأكد من حذف سجل الزيت هذا؟ سيتم حذفه بشكل دائم.')) {
+                let oilRecords = getOilRecords();
+                let records = oilRecords[currentVin];
+
+                // تصفية السجلات وإزالة السجل المطلوب
+                const newRecords = records.filter(r => r.id !== parseInt(recordId));
+                oilRecords[currentVin] = newRecords;
+                localStorage.setItem(OIL_STORAGE_KEY, JSON.stringify(oilRecords));
+                
+                alert('تم حذف سجل الزيت بنجاح.');
+                
+                currentCarOilRecords = newRecords;
+                renderOilRecords(currentCarOilRecords);
+                
+                // إذا كان السجل المحذوف هو الذي يتم تعديله حالياً، يتم مسح النموذج
+                if (currentEditingOilRecordId === parseInt(recordId)) {
+                    clearOilForm();
+                }
+            }
+        }
+
+
+        function clearOilForm() {
+            document.getElementById('oil-input-fields').querySelectorAll('input, select, textarea').forEach(element => {
+                if (element.tagName === 'SELECT') {
+                    // إعادة قيمة القائمة المنسدلة إلى القيمة الافتراضية
+                    if (element.id === 'air-filter' || element.id === 'engine-filter' || element.id === 'brake-fluid' || element.id === 'water' || element.id === 'steering-fluid' || element.id === 'gear-oil') {
+                         element.value = 'لم يتم';
+                    } else {
+                        element.value = element.options[0].value;
+                    }
+                } else if (element.type === 'number' || element.type === 'text' || element.type === 'date' || element.tagName === 'TEXTAREA') {
+                    element.value = '';
+                }
+            });
+            
+            // إعادة النموذج لحالة الإضافة
+            currentEditingOilRecordId = null;
+            document.getElementById('add-oil-record').style.display = 'inline-block';
+            document.getElementById('save-oil-edit').style.display = 'none';
+        }
+        
+        function renderOilRecords(recordsToRender, containerId = 'oil-records-output', isPrint = false) {
+            const vin = document.getElementById('car-selector').value;
+            const container = document.getElementById(containerId);
+
+            if (!vin) {
+                container.innerHTML = `<p style="text-align: center; color: #777;">الرجاء اختيار سيارة لعرض سجلات زيوتها.</p>`;
+                return;
+            }
+            if (recordsToRender.length === 0) {
+                container.innerHTML = `<p style="text-align: center; color: ${isPrint ? '#000' : '#dc3545'};">لا توجد سجلات مُدخلة ${isPrint ? 'في هذا التقرير' : 'لهذه السيارة'}.</p>`;
+                return;
+            }
+
+            recordsToRender.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            let tableHTML = '<table id="oil-records-table" class="car-records-table">';
+            tableHTML += '<thead><tr>';
+            oilFields.forEach(field => { tableHTML += `<th>${field.label}</th>`; });
+            if (!isPrint) { tableHTML += `<th>الإجراءات</th>`; } // عمود الإجراءات يظهر فقط في شاشة الإدخال
+            tableHTML += '</tr></thead>';
+
+            tableHTML += '<tbody>';
+            recordsToRender.forEach(record => {
+                tableHTML += '<tr>';
+                oilFields.forEach(field => { 
+                    // 💡 تطبيق تنسيق التاريخ المطلوب
+                    if (field.key === 'date') {
+                        tableHTML += `<td>${formatDate(record[field.key])}</td>`;
+                    } else {
+                        tableHTML += `<td>${record[field.key] || '-'}</td>`;
+                    }
+                });
+                // عمود الإجراءات بأزرار التعديل والحذف
+                if (!isPrint) {
+                    tableHTML += `<td class="actions">
+                                    <button type="button" class="edit-btn" onclick="editOilRecord(${record.id})">تعديل</button>
+                                    <button type="button" class="delete-btn" onclick="deleteOilRecord(${record.id})">حذف</button>
+                                </td>`;
+                }
+                tableHTML += '</tr>';
+            });
+            tableHTML += '</tbody></table>';
+            container.innerHTML = tableHTML;
+        }
+
+        // ----------------------------------------------------
+        // وظائف إدارة سجلات الصيانة (القسم الثالث)
+        // ----------------------------------------------------
+
+        function addMaintenanceRecord() {
+            const currentVin = document.getElementById('car-selector').value;
+            
+            const date = document.getElementById('maintenance-date').value;
+            const details = document.getElementById('maintenance-details').value;
+            if (!currentVin || !date || !details) { alert('الرجاء إدخال التاريخ والتفاصيل أولاً.'); return; }
+
+            let maintenanceRecords = getMaintenanceRecords();
+            let newRecord = { id: Date.now() };
+
+            calculateTotal();
+
+            maintenanceFields.forEach(field => {
+                const inputElement = document.querySelector(`[data-maint-key="${field.key}"]`);
+                newRecord[field.key] = inputElement ? inputElement.value : '';
+            });
+
+            if (!maintenanceRecords[currentVin]) { maintenanceRecords[currentVin] = []; }
+            maintenanceRecords[currentVin].push(newRecord);
+            localStorage.setItem(MAINTENANCE_STORAGE_KEY, JSON.stringify(maintenanceRecords));
+            
+            alert('تم إضافة سجل الصيانة بنجاح.');
+            
+            currentCarMaintenanceRecords = maintenanceRecords[currentVin];
+            clearMaintenanceForm();
+            renderMaintenanceRecords(currentCarMaintenanceRecords);
+        }
+
+        function editMaintenanceRecord(recordId) {
+            const record = currentCarMaintenanceRecords.find(r => r.id === parseInt(recordId));
+            if (!record) return;
+
+            // 1. تعبئة الحقول بالبيانات الحالية
+            maintenanceFields.forEach(field => {
+                const inputElement = document.querySelector(`[data-maint-key="${field.key}"]`);
+                if (inputElement) {
+                     // التأكد من تحويل قيمة التكلفة إلى رقمين عشريين عند العرض
+                    if (field.key === 'partsCost' || field.key === 'laborCost' || field.key === 'totalCost') {
+                        inputElement.value = parseFloat(record[field.key]).toFixed(2);
+                    } else {
+                        inputElement.value = record[field.key] || '';
+                    }
+                }
+            });
+
+            // 2. تحديث متغير التعديل العالمي وإظهار زر الحفظ
+            currentEditingMaintenanceRecordId = parseInt(recordId);
+            document.getElementById('add-maintenance-record').style.display = 'none';
+            document.getElementById('save-maintenance-edit').style.display = 'inline-block';
+            
+            // 3. التمرير للأعلى لرؤية حقول الإدخال
+            document.getElementById('maintenance-fieldset').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function saveMaintenanceEdit() {
+            const currentVin = document.getElementById('car-selector').value;
+            if (!currentVin || !currentEditingMaintenanceRecordId) return;
+
+            let maintenanceRecords = getMaintenanceRecords();
+            let records = maintenanceRecords[currentVin];
+            
+            // البحث عن مؤشر السجل الذي يتم تعديله
+            const recordIndex = records.findIndex(r => r.id === currentEditingMaintenanceRecordId);
+
+            if (recordIndex > -1) {
+                // تحديث البيانات من حقول الإدخال
+                calculateTotal();
+                
+                let updatedRecord = { id: currentEditingMaintenanceRecordId };
+                maintenanceFields.forEach(field => {
+                    const inputElement = document.querySelector(`[data-maint-key="${field.key}"]`);
+                    updatedRecord[field.key] = inputElement ? inputElement.value : '';
+                });
+                
+                records[recordIndex] = updatedRecord;
+                localStorage.setItem(MAINTENANCE_STORAGE_KEY, JSON.stringify(maintenanceRecords));
+                
+                alert('تم تعديل سجل الصيانة بنجاح.');
+                
+                currentCarMaintenanceRecords = records;
+                renderMaintenanceRecords(currentCarMaintenanceRecords);
+                clearMaintenanceForm();
+            }
+        }
+        
+        function deleteMaintenanceRecord(recordId) {
+            const currentVin = document.getElementById('car-selector').value;
+            if (!currentVin) return;
+
+            if (confirm('هل أنت متأكد من حذف سجل الصيانة هذا؟ سيتم حذفه بشكل دائم.')) {
+                let maintenanceRecords = getMaintenanceRecords();
+                let records = maintenanceRecords[currentVin];
+
+                // تصفية السجلات وإزالة السجل المطلوب
+                const newRecords = records.filter(r => r.id !== parseInt(recordId));
+                maintenanceRecords[currentVin] = newRecords;
+                localStorage.setItem(MAINTENANCE_STORAGE_KEY, JSON.stringify(maintenanceRecords));
+                
+                alert('تم حذف سجل الصيانة بنجاح.');
+                
+                currentCarMaintenanceRecords = newRecords;
+                renderMaintenanceRecords(currentCarMaintenanceRecords);
+                
+                // إذا كان السجل المحذوف هو الذي يتم تعديله حالياً، يتم مسح النموذج
+                if (currentEditingMaintenanceRecordId === parseInt(recordId)) {
+                    clearMaintenanceForm();
+                }
+            }
+        }
+
+        function clearMaintenanceForm() {
+            document.getElementById('maintenance-input-fields').querySelectorAll('input, select, textarea').forEach(element => {
+                if (element.tagName === 'SELECT') {
+                    element.value = element.options[0].value;
+                } else if (element.type === 'number' || element.type === 'text' || element.type === 'date') {
+                    element.value = '';
+                }
+            });
+            calculateTotal();
+            
+            // إعادة النموذج لحالة الإضافة
+            currentEditingMaintenanceRecordId = null;
+            document.getElementById('add-maintenance-record').style.display = 'inline-block';
+            document.getElementById('save-maintenance-edit').style.display = 'none';
+        }
+
+        function renderMaintenanceRecords(recordsToRender, containerId = 'maintenance-records-output', isPrint = false) {
+            const vin = document.getElementById('car-selector').value;
+            const container = document.getElementById(containerId);
+
+            if (!vin) {
+                container.innerHTML = `<p style="text-align: center; color: #777;">الرجاء اختيار سيارة لعرض سجلات صيانتها.</p>`;
+                return;
+            }
+            if (recordsToRender.length === 0) {
+                container.innerHTML = `<p style="text-align: center; color: ${isPrint ? '#000' : '#dc3545'};">لا توجد سجلات مُدخلة ${isPrint ? 'في هذا التقرير' : 'لهذه السيارة'}.</p>`;
+                return;
+            }
+
+            recordsToRender.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            let tableHTML = '<table id="maintenance-records-table" class="car-records-table">';
+            tableHTML += '<thead><tr>';
+            maintenanceFields.forEach(field => { tableHTML += `<th>${field.label}</th>`; });
+            if (!isPrint) { tableHTML += `<th>الإجراءات</th>`; } // عمود الإجراءات يظهر فقط في شاشة الإدخال
+            tableHTML += '</tr></thead>';
+
+            tableHTML += '<tbody>';
+            recordsToRender.forEach(record => {
+                tableHTML += '<tr>';
+                maintenanceFields.forEach(field => {
+                    if (field.key === 'partsCost' || field.key === 'laborCost' || field.key === 'totalCost') {
+                        // عرض قيمة التكلفة برقمين عشريين
+                        tableHTML += `<td>${parseFloat(record[field.key]).toFixed(2) || '0.00'}</td>`;
+                    } else if (field.key === 'date') { // 💡 تطبيق تنسيق التاريخ المطلوب
+                         tableHTML += `<td>${formatDate(record[field.key])}</td>`;
+                    } else {
+                        tableHTML += `<td>${record[field.key] || '-'}</td>`;
+                    }
+                });
+                // عمود الإجراءات بأزرار التعديل والحذف
+                if (!isPrint) {
+                    tableHTML += `<td class="actions">
+                                    <button type="button" class="edit-btn" onclick="editMaintenanceRecord(${record.id})">تعديل</button>
+                                    <button type="button" class="delete-btn" onclick="deleteMaintenanceRecord(${record.id})">حذف</button>
+                                </td>`;
+                }
+                tableHTML += '</tr>';
+            });
+            tableHTML += '</tbody></table>';
+
+            container.innerHTML = tableHTML;
+        }
+
+        // ----------------------------------------------------
+        // 💡 وظائف إدارة سجلات قطع الغيار (القسم الرابع الجديد)
+        // ----------------------------------------------------
+
+        function addPartsRecord() {
+            const currentVin = document.getElementById('car-selector').value;
+            
+            const date = document.getElementById('parts-date').value;
+            const storeName = document.getElementById('parts-store-name').value;
+            if (!currentVin || !date || !storeName) { alert('الرجاء إدخال تاريخ الشراء واسم المحل أولاً.'); return; }
+
+            let partsRecords = getPartsRecords();
+            let newRecord = { id: Date.now() };
+
+            calculatePartsTotal();
+
+            partsFields.forEach(field => {
+                const inputElement = document.querySelector(`[data-parts-key="${field.key}"]`);
+                newRecord[field.key] = inputElement ? inputElement.value : '';
+            });
+            
+            // التأكد من أن التكاليف والتفاصيل رقمية
+            newRecord.costPerUnit = parseFloat(newRecord.costPerUnit).toFixed(2);
+            newRecord.quantity = parseInt(newRecord.quantity);
+            newRecord.taxRate = parseFloat(newRecord.taxRate).toFixed(2);
+            newRecord.totalCost = parseFloat(newRecord.totalCost).toFixed(2);
+
+            // 💡 التعديل رقم 1: تخزين كود SVG المتولد ضمن السجل
+            const barcodeDisplay = document.getElementById('barcode-display-area');
+            const svgElement = barcodeDisplay.querySelector('#temp-barcode-svg');
+            
+            // إذا كان SVG موجوداً، قم بتخزين كود HTML الخاص به
+            newRecord.barcodeSvg = svgElement ? svgElement.outerHTML : ''; 
+
+            if (!partsRecords[currentVin]) { partsRecords[currentVin] = []; }
+            partsRecords[currentVin].push(newRecord);
+            localStorage.setItem(PARTS_STORAGE_KEY, JSON.stringify(partsRecords));
+            
+            alert('تم إضافة سجل قطع الغيار بنجاح.');
+            
+            currentCarPartsRecords = partsRecords[currentVin];
+            clearPartsForm();
+            renderPartsRecords(currentCarPartsRecords);
+        }
+
+        function editPartsRecord(recordId) {
+            const record = currentCarPartsRecords.find(r => r.id === parseInt(recordId));
+            if (!record) return;
+
+            // 1. تعبئة الحقول بالبيانات الحالية
+            partsFields.forEach(field => {
+                const inputElement = document.querySelector(`[data-parts-key="${field.key}"]`);
+                if (inputElement) {
+                     // التأكد من تحويل قيمة التكلفة إلى رقمين عشريين عند العرض
+                    if (field.key === 'costPerUnit' || field.key === 'totalCost' || field.key === 'taxRate') {
+                        inputElement.value = parseFloat(record[field.key]).toFixed(2);
+                    } else if (field.key === 'quantity') {
+                        inputElement.value = parseInt(record[field.key]);
+                    } 
+                    else {
+                        inputElement.value = record[field.key] || '';
+                    }
+                }
+            });
+
+            // 2. تحديث متغير التعديل العالمي وإظهار زر الحفظ
+            currentEditingPartsRecordId = parseInt(recordId);
+            document.getElementById('add-parts-record').style.display = 'none';
+            document.getElementById('save-parts-edit').style.display = 'inline-block';
+            
+            // 💡 توليد الباركود للقطعة التي يتم تعديلها
+            generateBarcode(); 
+            
+            // 3. التمرير للأعلى لرؤية حقول الإدخال
+            document.getElementById('parts-fieldset').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function savePartsEdit() {
+            const currentVin = document.getElementById('car-selector').value;
+            if (!currentVin || !currentEditingPartsRecordId) return;
+
+            let partsRecords = getPartsRecords();
+            let records = partsRecords[currentVin];
+            
+            // البحث عن مؤشر السجل الذي يتم تعديله
+            const recordIndex = records.findIndex(r => r.id === currentEditingPartsRecordId);
+
+            if (recordIndex > -1) {
+                // تحديث البيانات من حقول الإدخال
+                calculatePartsTotal();
+                
+                let updatedRecord = { id: currentEditingPartsRecordId };
+                partsFields.forEach(field => {
+                    const inputElement = document.querySelector(`[data-parts-key="${field.key}"]`);
+                    updatedRecord[field.key] = inputElement ? inputElement.value : '';
+                });
+                
+                // التأكد من أن التكاليف والتفاصيل رقمية
+                updatedRecord.costPerUnit = parseFloat(updatedRecord.costPerUnit).toFixed(2);
+                updatedRecord.quantity = parseInt(updatedRecord.quantity);
+                updatedRecord.taxRate = parseFloat(updatedRecord.taxRate).toFixed(2);
+                updatedRecord.totalCost = parseFloat(updatedRecord.totalCost).toFixed(2);
+
+                // 💡 التعديل رقم 2: تحديث كود SVG المتولد ضمن السجل
+                const barcodeDisplay = document.getElementById('barcode-display-area');
+                const svgElement = barcodeDisplay.querySelector('#temp-barcode-svg');
+                updatedRecord.barcodeSvg = svgElement ? svgElement.outerHTML : ''; 
+
+                records[recordIndex] = updatedRecord;
+                localStorage.setItem(PARTS_STORAGE_KEY, JSON.stringify(partsRecords));
+                
+                alert('تم تعديل سجل قطع الغيار بنجاح.');
+                
+                currentCarPartsRecords = records;
+                renderPartsRecords(currentCarPartsRecords);
+                clearPartsForm();
+            }
+        }
+        
+        function deletePartsRecord(recordId) {
+            const currentVin = document.getElementById('car-selector').value;
+            if (!currentVin) return;
+
+            if (confirm('هل أنت متأكد من حذف سجل قطع الغيار هذا؟ سيتم حذفه بشكل دائم.')) {
+                let partsRecords = getPartsRecords();
+                let records = partsRecords[currentVin];
+
+                // تصفية السجلات وإزالة السجل المطلوب
+                const newRecords = records.filter(r => r.id !== parseInt(recordId));
+                partsRecords[currentVin] = newRecords;
+                localStorage.setItem(PARTS_STORAGE_KEY, JSON.stringify(partsRecords));
+                
+                alert('تم حذف سجل قطع الغيار بنجاح.');
+                
+                currentCarPartsRecords = newRecords;
+                renderPartsRecords(currentCarPartsRecords);
+                
+                // إذا كان السجل المحذوف هو الذي يتم تعديله حالياً، يتم مسح النموذج
+                if (currentEditingPartsRecordId === parseInt(recordId)) {
+                    clearPartsForm();
+                }
+            }
+        }
+
+        function clearPartsForm() {
+            document.getElementById('parts-input-fields').querySelectorAll('input, select, textarea').forEach(element => {
+                if (element.tagName === 'SELECT') {
+                    element.value = element.options[0].value;
+                } else if (element.type === 'number' || element.type === 'text' || element.type === 'date' || element.tagName === 'TEXTAREA') {
+                    element.value = '';
+                }
+            });
+            // إعادة قيمة الضريبة الافتراضية
+            document.getElementById('parts-tax-rate').value = "15"; 
+            calculatePartsTotal();
+            
+            // 💡 مسح منطقة عرض الباركود
+            document.getElementById('barcode-display-area').innerHTML = '<p style="color: #ccc;">(يظهر الباركود هنا بعد إدخال رقم القطعة)</p>';
+            
+            // إعادة النموذج لحالة الإضافة
+            currentEditingPartsRecordId = null;
+            document.getElementById('add-parts-record').style.display = 'inline-block';
+            document.getElementById('save-parts-edit').style.display = 'none';
+        }
+
+        function renderPartsRecords(recordsToRender, containerId = 'parts-records-output', isPrint = false) {
+            const vin = document.getElementById('car-selector').value;
+            const container = document.getElementById(containerId);
+
+            if (!vin) {
+                container.innerHTML = `<p style="text-align: center; color: #777;">الرجاء اختيار سيارة لعرض سجلات قطع الغيار.</p>`;
+                return;
+            }
+            if (recordsToRender.length === 0) {
+                container.innerHTML = `<p style="text-align: center; color: ${isPrint ? '#000' : '#dc3545'};">لا توجد سجلات مُدخلة ${isPrint ? 'في هذا التقرير' : 'لهذه السيارة'}.</p>`;
+                return;
+            }
+
+            recordsToRender.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            let tableHTML = '<table id="parts-records-table" class="car-records-table">';
+            tableHTML += '<thead><tr>';
+            partsFields.forEach(field => { tableHTML += `<th>${field.label}</th>`; });
+            if (!isPrint) { tableHTML += `<th>الإجراءات</th>`; } // عمود الإجراءات يظهر فقط في شاشة الإدخال
+            tableHTML += '</tr></thead>';
+
+            tableHTML += '<tbody>';
+            recordsToRender.forEach(record => {
+                tableHTML += '<tr>';
+                partsFields.forEach(field => {
+                    if (field.key === 'costPerUnit' || field.key === 'totalCost') {
+                        // عرض قيمة التكلفة برقمين عشريين
+                        tableHTML += `<td>${parseFloat(record[field.key]).toFixed(2) || '0.00'}</td>`;
+                    } else if (field.key === 'taxRate') {
+                        tableHTML += `<td>${parseFloat(record[field.key]).toFixed(2) || '0.00'}%</td>`;
+                    } else if (field.key === 'barcode') { 
+                        // 💡 عرض كود SVG المخزن مباشرةً في عمود الباركود
+                        // إذا لم يتم حفظ الـ SVG (سجلات قديمة)، يتم عرض الرقم النصي كاحتياطي
+                        tableHTML += `<td>${record.barcodeSvg || record[field.key] || '-'}</td>`; 
+                    } else if (field.key === 'date') { // 💡 تطبيق تنسيق التاريخ المطلوب
+                        tableHTML += `<td>${formatDate(record[field.key])}</td>`;
+                    } else {
+                        tableHTML += `<td>${record[field.key] || '-'}</td>`;
+                    }
+                });
+                // عمود الإجراءات بأزرار التعديل والحذف
+                if (!isPrint) {
+                    tableHTML += `<td class="actions">
+                                    <button type="button" class="edit-btn" onclick="editPartsRecord(${record.id})">تعديل</button>
+                                    <button type="button" class="delete-btn" onclick="deletePartsRecord(${record.id})">حذف</button>
+                                </td>`;
+                }
+                tableHTML += '</tr>';
+            });
+            tableHTML += '</tbody></table>';
+
+            container.innerHTML = tableHTML;
+        }
+
+
+        // ----------------------------------------------------
+        // وظائف الطباعة والتقارير (القسم الخامس)
+        // ----------------------------------------------------
+
+        function getReportData(type, month, year) {
+            let records;
+            if (type === 'oil') records = currentCarOilRecords;
+            else if (type === 'maintenance') records = currentCarMaintenanceRecords;
+            else if (type === 'parts') records = currentCarPartsRecords; 
+            else return [];
+
+            if (!year) {
+                return []; // يجب اختيار سنة للتقرير المفلتر
+            }
+
+            // تصفية السجلات
+            const filteredRecords = records.filter(record => {
+                const recordDate = new Date(record.date);
+                const recordYear = recordDate.getFullYear().toString();
+                const recordMonth = (recordDate.getMonth() + 1).toString().padStart(2, '0'); // الشهر من 1 إلى 12
+
+                const yearMatch = recordYear === year;
+                const monthMatch = !month || recordMonth === month;
+
+                return yearMatch && monthMatch;
+            });
+
+            return filteredRecords;
+        }
+
+
+        function printFilteredReport(type) {
+            const vin = document.getElementById('car-selector').value;
+            if (!vin) {
+                alert('الرجاء اختيار سيارة أولاً.');
+                return;
+            }
+
+            const month = document.getElementById(`${type}-report-month`).value;
+            const year = document.getElementById(`${type}-report-year`).value;
+
+            if (!year) {
+                alert('الرجاء اختيار السنة لتقرير الصيانة.');
+                return;
+            }
+
+            const reportRecords = getReportData(type, month, year);
+
+            // إخفاء جميع التقارير
+            document.getElementById('print-oil-report').style.display = 'none';
+            document.getElementById('print-maintenance-report').style.display = 'none';
+            document.getElementById('print-parts-report').style.display = 'none'; 
+            
+            const printReportContainer = document.getElementById(`print-${type}-report`);
+            printReportContainer.style.display = 'block';
+
+            // 1. تحديث الترويسة الرئيسية وبيانات السيارة (القسم الأول)
+            updatePrintCarHeader(vin);
+
+            // 2. تحديث عنوان التقرير
+            const monthName = month ? document.getElementById(`${type}-report-month`).options[document.getElementById(`${type}-report-month`).selectedIndex].text : '';
+            let finalTitle = '';
+
+            if(type === 'oil') {
+                finalTitle = month 
+                    ? `🛢️ تقرير تغيير الزيوت لشهر ${monthName} عام ${year}`
+                    : `🛢️ تقرير تغيير الزيوت لعام ${year}`;
+                renderOilRecords(reportRecords, 'print-oil-records', true);
+            } else if (type === 'maintenance') {
+                finalTitle = month 
+                    ? `🔧 تقرير الصيانة والإصلاحات لشهر ${monthName} عام ${year}`
+                    : `🔧 تقرير الصيانة والإصلاحات لعام ${year}`;
+                renderMaintenanceRecords(reportRecords, 'print-maintenance-records', true);
+            } else if (type === 'parts') { 
+                finalTitle = month 
+                    ? `🔩 تقرير سجل قطع الغيار لشهر ${monthName} عام ${year}`
+                    : `🔩 تقرير سجل قطع الغيار لعام ${year}`;
+                renderPartsRecords(reportRecords, 'print-parts-records', true);
+            }
+
+            document.getElementById(`${type}-report-title`).textContent = finalTitle;
+
+
+            // 4. إطلاق الطباعة
+            window.print();
+        }
+
+        function printFullReport(type) {
+            const vin = document.getElementById('car-selector').value;
+            if (!vin) {
+                alert('الرجاء اختيار سيارة أولاً.');
+                return;
+            }
+
+            let reportRecords;
+            let reportTitle;
+            
+            if (type === 'oil') {
+                reportRecords = currentCarOilRecords;
+                reportTitle = '🛢️ تقرير تغيير الزيوت الكامل';
+                renderOilRecords(reportRecords, 'print-oil-records', true);
+            } else if (type === 'maintenance') {
+                reportRecords = currentCarMaintenanceRecords;
+                reportTitle = '🔧 تقرير الصيانة والإصلاحات الكامل';
+                renderMaintenanceRecords(reportRecords, 'print-maintenance-records', true);
+            } else if (type === 'parts') { 
+                reportRecords = currentCarPartsRecords;
+                reportTitle = '🔩 تقرير سجل قطع الغيار الكامل';
+                renderPartsRecords(reportRecords, 'print-parts-records', true);
+            } else {
+                return;
+            }
+
+            // إخفاء جميع التقارير ما عدا المطلوب
+            document.getElementById('print-oil-report').style.display = 'none';
+            document.getElementById('print-maintenance-report').style.display = 'none';
+            document.getElementById('print-parts-report').style.display = 'none'; 
+            
+            const printReportContainer = document.getElementById(`print-${type}-report`);
+            printReportContainer.style.display = 'block';
+
+            // 1. تحديث الترويسة الرئيسية وبيانات السيارة (القسم الأول)
+            updatePrintCarHeader(vin);
+
+            // 2. تحديث عنوان التقرير
+            document.getElementById(`${type}-report-title`).textContent = reportTitle;
+            
+            // 4. إطلاق الطباعة
+            window.print();
+        }
+
+        function updatePrintCarHeader(vin) {
+            const carRecords = getCarRecords();
+            const carData = carRecords[vin];
+
+            // تعبئة بيانات السيارة الأساسية لمنطقة الطباعة
+            let carDataHTML = '<ul style="list-style: none; padding: 0; margin-right: 0; display: flex; flex-wrap: wrap;">';
+            dataFields.forEach(field => {
+                let displayValue = carData[field.key] || '-';
+                // 💡 تطبيق تنسيق التاريخ المطلوب على حقول التواريخ في القسم الأول
+                if (['regExpiry', 'insuranceStart', 'insuranceEnd'].includes(field.key)) {
+                    displayValue = formatDate(carData[field.key]);
+                }
+                carDataHTML += `<li style="flex: 1 1 300px; margin-bottom: 5px;"><strong>${field.label}:</strong> ${displayValue}</li>`;
+            });
+            carDataHTML += '</ul>';
+            document.getElementById('print-car-header').textContent = `سجلات السيارة: ${carData.make || ''} ${carData.model || ''} (${carData.serial})`;
+            document.getElementById('print-car-data').innerHTML = carDataHTML;
+        }
+
+
+        // ----------------------------------------------------
+        // تشغيل الدوال الأساسية عند تحميل الصفحة
+        // ----------------------------------------------------
+
+        // الزيوت
+        document.getElementById('current-reading').oninput = calculateNextChange;
+        document.getElementById('oil-validity').oninput = calculateNextChange;
+        
+        // الصيانة
+        document.getElementById('parts-cost').oninput = calculateTotal;
+        document.getElementById('labor-cost').oninput = calculateTotal;
+
+        // قطع الغيار 💡
+        // دالة توليد الباركود تم ربطها في HTML
+        document.getElementById('parts-cost-per-unit').oninput = calculatePartsTotal;
+        document.getElementById('parts-quantity').oninput = calculatePartsTotal;
+        document.getElementById('parts-tax-rate').oninput = calculatePartsTotal;
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            populateCarSelector();
+            populateYearSelectors(); 
+            // إخفاء الأقسام عند التحميل
+            document.getElementById('oil-fieldset').style.display = 'none';
+            document.getElementById('maintenance-fieldset').style.display = 'none';
+            document.getElementById('parts-fieldset').style.display = 'none'; 
+            document.getElementById('reports-fieldset').style.display = 'none';
+            
+            // التأكد من إخفاء أزرار التعديل عند التحميل
+            document.getElementById('save-oil-edit').style.display = 'none';
+            document.getElementById('save-maintenance-edit').style.display = 'none';
+            document.getElementById('save-parts-edit').style.display = 'none'; 
+        });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script> 
+</body>
+</html>
